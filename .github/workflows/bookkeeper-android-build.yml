@@ -104,22 +104,36 @@ jobs:
           fi
 
       - name: Build debug APK
+        id: build_debug
         if: steps.variant.outputs.type == 'debug' || steps.keystore.outputs.available != 'true'
-        run: cd android && ./gradlew assembleDebug --no-daemon
+        run: |
+          set -o pipefail
+          cd android
+          ./gradlew assembleDebug --no-daemon --stacktrace 2>&1 | tee /tmp/gradle-build.log
 
       - name: Build release APK (signed)
+        id: build_release
         if: steps.variant.outputs.type == 'release' && steps.keystore.outputs.available == 'true'
         env:
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
+          set -o pipefail
           cd android
-          ./gradlew assembleRelease --no-daemon \
+          ./gradlew assembleRelease --no-daemon --stacktrace \
             -Pandroid.injected.signing.store.file=app/release.keystore \
             -Pandroid.injected.signing.store.password="$ANDROID_KEYSTORE_PASSWORD" \
             -Pandroid.injected.signing.key.alias="$ANDROID_KEY_ALIAS" \
-            -Pandroid.injected.signing.key.password="$ANDROID_KEY_PASSWORD"
+            -Pandroid.injected.signing.key.password="$ANDROID_KEY_PASSWORD" 2>&1 | tee /tmp/gradle-build.log
+
+      - name: Surface Gradle failure as an annotation
+        if: failure() && (steps.build_debug.outcome == 'failure' || steps.build_release.outcome == 'failure')
+        shell: bash
+        run: |
+          tail -n 120 /tmp/gradle-build.log > /tmp/gradle-tail.log || true
+          encoded=$(sed -e 's/%/%25/g' -e 's/\r/%0D/g' /tmp/gradle-tail.log | awk 'BEGIN{ORS="%0A"}{print}')
+          echo "::error title=Gradle build failed::${encoded}"
 
       - name: Locate built APK
         id: apk
