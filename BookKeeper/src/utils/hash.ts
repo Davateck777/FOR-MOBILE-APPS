@@ -1,19 +1,17 @@
+import {sha256} from 'js-sha256';
+
 /**
- * Deterministic, dependency-free string hash (djb2 variant).
+ * SHA-256 hash of a string, using a pure-JS implementation (`js-sha256`)
+ * so it works on Android/iOS without any native module — no extra
+ * autolinking, no extra CI build risk.
  *
- * ⚠️ This is NOT cryptographically secure. It exists to keep the MVP's
- * "app lock" PIN from being stored in plain text without pulling in a
- * native crypto dependency (which would add build risk for a first CI
- * pass). For a production release, replace this with a vetted hashing
- * library (e.g. via `react-native-keychain` + OS secure storage) — see
- * the Roadmap section of the README.
+ * Used to store the app-lock PIN as a hash instead of plain text. Note:
+ * a 4–6 digit PIN has inherently low entropy (at most 1,000,000
+ * combinations) regardless of hash algorithm — the same trade-off every
+ * phone's lock-screen PIN makes. This is a local, on-device deterrent
+ * against casual snooping, not protection against a determined attacker
+ * with access to the device's storage.
  */
-/* eslint-disable no-bitwise -- bitwise ops are intentional for this hash algorithm */
 export function simpleHash(input: string): string {
-  let hash = 5381;
-  for (let i = 0; i < input.length; i += 1) {
-    hash = (hash * 33) ^ input.charCodeAt(i);
-  }
-  return (hash >>> 0).toString(16);
+  return sha256(input);
 }
-/* eslint-enable no-bitwise */

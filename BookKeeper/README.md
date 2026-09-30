@@ -58,9 +58,13 @@ BookKeeper/
   (`useAppData()`) instead of Redux/Zustand — fewer moving parts for an
   MVP of this size. Can be swapped in without touching screens if the app
   grows.
-- **App lock:** PIN is hashed with a small dependency-free hash
-  (`src/utils/hash.ts`), not a cryptographic library — clearly documented
-  as a *deterrent*, not bank-grade security. See Roadmap.
+- **App lock:** PIN is hashed with SHA-256 (`js-sha256`, a pure-JS
+  implementation — zero native dependencies, zero extra CI build risk)
+  via `src/utils/hash.ts`. Note that any 4–6 digit PIN has inherently low
+  entropy regardless of hash algorithm (same trade-off as a phone's
+  lock-screen PIN) — it's a local deterrent, not protection against a
+  determined attacker with access to the device's storage. See Roadmap
+  for OS-backed secure storage.
 - **Charts:** Category breakdowns use a simple `View`-based bar chart
   (`src/components/BarRow.tsx`) instead of a native charting library —
   zero extra native dependencies, zero extra CI build risk.
@@ -136,8 +140,8 @@ build so the pipeline never fails for lack of signing credentials.
 
 ## 🗺️ Roadmap (post-MVP)
 
-- Real crypto-backed PIN storage (`react-native-keychain` / OS secure
-  storage) instead of the placeholder hash.
+- OS-backed secure storage for the PIN (`react-native-keychain` /
+  Android Keystore) instead of a SHA-256 hash in AsyncStorage.
 - Receipt photo capture per transaction (`react-native-image-picker`).
 - SQLite (or a sync backend) for larger datasets / multi-device sync.
 - PDF invoice generation and native date picker.
