@@ -131,9 +131,19 @@ jobs:
         if: failure() && (steps.build_debug.outcome == 'failure' || steps.build_release.outcome == 'failure')
         shell: bash
         run: |
-          tail -n 120 /tmp/gradle-build.log > /tmp/gradle-tail.log || true
+          log=/tmp/gradle-build.log
+          start_line=$(grep -n -m1 -E "FAILURE: Build failed|What went wrong" "$log" | head -1 | cut -d: -f1 || true)
+          if [ -n "$start_line" ]; then
+            sed -n "${start_line},\$p" "$log" | head -n 100 > /tmp/gradle-tail.log
+          else
+            tail -n 100 "$log" > /tmp/gradle-tail.log
+          fi
           encoded=$(sed -e 's/%/%25/g' -e 's/\r/%0D/g' /tmp/gradle-tail.log | awk 'BEGIN{ORS="%0A"}{print}')
-          echo "::error title=Gradle build failed::${encoded}"
+          echo "::error title=Gradle build failed (part 1)::${encoded}"
+
+          tail -n 60 "$log" > /tmp/gradle-tail2.log
+          encoded2=$(sed -e 's/%/%25/g' -e 's/\r/%0D/g' /tmp/gradle-tail2.log | awk 'BEGIN{ORS="%0A"}{print}')
+          echo "::error title=Gradle build failed (tail)::${encoded2}"
 
       - name: Locate built APK
         id: apk
